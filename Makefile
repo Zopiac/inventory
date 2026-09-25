@@ -16,8 +16,8 @@ src/server.o: src/server.c src/db.h
 src/db.o: src/db.c src/db.h
 	$(CC) $(CFLAGS) -c src/db.c -o src/db.o
 
-inventory-tui: src/inventory_tui.c
-	cc -std=c11 -Wall -Wextra -pedantic src/inventory_tui.c -o inventory-tui -lsqlite3 -lncurses
+inventory-tui: src/tui.c
+	cc -std=c11 -Wall -Wextra -pedantic src/tui.c -o inventory-tui -lsqlite3 -lncurses
 
 clean:
 	rm -f src/*.o inventory-server inventory-tui
