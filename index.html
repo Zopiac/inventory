@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tech Inventory</title>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      background: #f4f5f7;
+      color: #202124;
+    }
+
+    main {
+      max-width: 1500px;
+      margin: auto;
+    }
+
+    h1, h2, status {
+      margin-top: 0;
+    }
+
+    section {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px #0002;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-weight: 600;
+    }
+
+    input, select, button {
+      font: inherit;
+      padding: 0.5rem;
+      border: 1px solid #aab0b6;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      cursor: pointer;
+      background: #1769aa;
+      color: white;
+      border: 0;
+    }
+
+    button:hover {
+      background: #0d4f83;
+    }
+
+    .actions {
+      display: flex;
+      align-items: end;
+      gap: 0.5rem;
+    }
+
+    .status {
+      min-height: 1.5rem;
+      margin-top: 0.8rem;
+    }
+
+    .error {
+      color: #a40000;
+    }
+
+    .success {
+      color: #087f23;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      white-space: nowrap;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.55rem;
+      border-bottom: 1px solid #d8dce0;
+    }
+
+    th {
+      background: #e9edf1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #eee;
+      }
+
+      section {
+        background: #303134;
+      }
+
+      th {
+        background: #45474b;
+      }
+
+      input, select {
+        background: #202124;
+        color: #eee;
+      }
+
+      th, td {
+        border-color: #555;
+      }
+    }
+    .delete-button {
+      width: 1.2rem;
+      height: 1.2rem;
+      padding: 0;
+      background: #ff0000;
+      color: white;
+      font-weight: bold;
+      border-radius: 20%;
+    }
+    
+    .delete-button:hover {
+      background: #880000;
+    }
+
+  </style>
+</head>
+
+<body>
+<main>
+  <h1>Tech Inventory</h1>
+
+  <section>
+    <h2>Add device</h2>
+
+    <form id="device-form">
+      <label>
+        Campus *
+        <input name="campus" required>
+      </label>
+
+      <label>
+        Location *
+        <input name="location" required>
+      </label>
+
+      <label>
+        Device type *
+        <input name="device_type" required>
+      </label>
+
+      <label>
+        Make
+        <input name="make">
+      </label>
+
+      <label>
+        Model
+        <input name="model">
+      </label>
+
+      <label>
+        S/N
+        <input name="serial_number">
+      </label>
+
+      <label>
+        Role/name
+        <input name="role_name">
+      </label>
+
+      <label>
+        Input(s)
+        <input name="inputs" placeholder="HDMI, VGA">
+      </label>
+
+      <label>
+        IP
+        <input name="ip_address" inputmode="decimal">
+      </label>
+
+      <label>
+        MAC
+        <input name="mac_address" placeholder="00:11:22:33:44:55">
+      </label>
+
+      <label>
+        VLAN
+        <input name="vlan" inputmode="numeric">
+      </label>
+
+      <label>
+        Status
+        <select name="status">
+          <option>Active</option>
+          <option>Stored</option>
+          <option>Repair</option>
+          <option>Retired</option>
+          <option>Missing</option>
+        </select>
+      </label>
+
+      <label>
+        Static IP?
+        <select name="is_static">
+          <option value="false">No</option>
+          <option value="true">Yes</option>
+        </select>
+      </label>
+
+      <div class="actions">
+        <button type="submit">Add device</button>
+        <button type="button" id="reload-button">Reload list</button>
+      </div>
+    </form>
+
+    <div id="form-status" class="status" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Current devices</h2>
+
+    <label>
+      Filter by campus
+      <input id="campus-filter" placeholder="Leave blank for all campuses">
+    </label>
+
+    <div id="table-status" class="status"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Campus</th>
+            <th>Location</th>
+            <th>Device type</th>
+            <th>Make</th>
+            <th>Model</th>
+            <th>Role/name</th>
+            <th>IP</th>
+            <th>Static?</th>
+            <th>VLAN</th>
+            <th>Status</th>
+	    <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody id="device-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  const form = document.querySelector("#device-form");
+  const formStatus = document.querySelector("#form-status");
+  const tableStatus = document.querySelector("#table-status");
+  const rows = document.querySelector("#device-rows");
+  const campusFilter = document.querySelector("#campus-filter");
+  const reloadButton = document.querySelector("#reload-button");
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function setStatus(element, message, success = false) {
+    element.textContent = message;
+    element.className = "status " + (success ? "success" : "error");
+  }
+
+  async function loadDevices() {
+    setStatus(tableStatus, "Loading...", true);
+
+    try {
+      const campus = campusFilter.value.trim();
+      const url = campus
+        ? `/api/devices?campus=${encodeURIComponent(campus)}`
+        : "/api/devices";
+
+      const response = await fetch(url);
+
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status}`);
+
+      const devices = await response.json();
+
+      rows.innerHTML = "";
+
+      if (!devices.length) {
+        rows.innerHTML =
+          `<tr><td colspan="11">No devices found.</td></tr>`;
+      } else {
+        for (const device of devices) {
+          const tr = document.createElement("tr");
+
+          tr.innerHTML = `
+            <td>${escapeHtml(device.campus)}</td>
+            <td>${escapeHtml(device.location)}</td>
+            <td>${escapeHtml(device.device_type)}</td>
+            <td>${escapeHtml(device.make)}</td>
+            <td>${escapeHtml(device.model)}</td>
+            <td>${escapeHtml(device.role_name)}</td>
+            <td>${escapeHtml(device.ip_address)}</td>
+            <td>${device.is_static ? "Yes" : "No"}</td>
+            <td>${escapeHtml(device.vlan)}</td>
+            <td>${escapeHtml(device.status)}</td>
+            <td>
+              <button
+                type="button"
+                class="delete-button"
+                data-device-id="${Number(device.id)}"
+                data-device-label="${escapeHtml(
+                  `${device.location} / ${device.device_type} / ${device.make} ${device.model}`
+                )}"
+                title="Delete this device"
+                aria-label="Delete this device">
+                X
+              </button>
+            </td>
+          `;
+
+          rows.appendChild(tr);
+        }
+      }
+
+      setStatus(tableStatus, `${devices.length} device(s)`, true);
+    } catch (error) {
+      console.error(error);
+      setStatus(tableStatus, "Unable to load devices.");
+    }
+  }
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const data = new FormData(form);
+
+    const device = {
+      campus: data.get("campus").trim(),
+      location: data.get("location").trim(),
+      device_type: data.get("device_type").trim(),
+      make: data.get("make").trim(),
+      model: data.get("model").trim(),
+      serial_number: data.get("serial_number").trim(),
+      role_name: data.get("role_name").trim(),
+      inputs: data.get("inputs").trim(),
+      ip_address: data.get("ip_address").trim(),
+      is_static: data.get("is_static") === "true",
+      mac_address: data.get("mac_address").trim(),
+      vlan: data.get("vlan").trim(),
+      status: data.get("status")
+    };
+
+    setStatus(formStatus, "Saving...", true);
+
+    try {
+      const response = await fetch("/api/devices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(device)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok)
+        throw new Error(result.error || `HTTP ${response.status}`);
+
+      setStatus(
+        formStatus,
+        `Device added successfully. ID: ${result.id}`,
+        true
+      );
+
+      form.reset();
+      await loadDevices();
+    } catch (error) {
+      console.error(error);
+      setStatus(formStatus, error.message || "Unable to save device.");
+    }
+  });
+
+  async function deleteDevice(deviceId, deviceLabel) {
+    const confirmed = window.confirm(
+      `Delete this inventory item?\n\n${deviceLabel}\n\n` +
+      "This cannot be undone."
+    );
+  
+    if (!confirmed)
+      return;
+  
+    setStatus(tableStatus, "Deleting...", true);
+  
+    try {
+      const response = await fetch(
+        `/api/devices/${encodeURIComponent(deviceId)}`,
+        {
+          method: "DELETE"
+        }
+      );
+  
+      const result = await response.json();
+  
+      if (!response.ok)
+        throw new Error(result.error || `HTTP ${response.status}`);
+  
+      await loadDevices();
+      setStatus(tableStatus, "Device deleted.", true);
+    } catch (error) {
+      console.error(error);
+      setStatus(
+        tableStatus,
+        error.message || "Unable to delete device."
+      );
+    }
+  }
+
+
+  reloadButton.addEventListener("click", loadDevices);
+
+  campusFilter.addEventListener("change", loadDevices);
+
+  rows.addEventListener("click", event => {
+    const button = event.target.closest(".delete-button");
+  
+    if (!button)
+      return;
+  
+    const deviceId = button.dataset.deviceId;
+    const deviceLabel = button.dataset.deviceLabel;
+  
+    deleteDevice(deviceId, deviceLabel);
+  });    
+
+  loadDevices();
+</script>
+</body>
+</html>
+
